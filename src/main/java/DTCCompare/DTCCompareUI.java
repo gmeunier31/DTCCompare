@@ -23,11 +23,9 @@ import javax.swing.text.BadLocationException;
 import javax.swing.text.SimpleAttributeSet;
 import javax.swing.text.StyleConstants;
 import javax.swing.text.StyledDocument;
-import jdk.nashorn.internal.parser.TokenType;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
 
 /**
  *
@@ -40,20 +38,30 @@ public class DTCCompareUI extends javax.swing.JFrame {
      */
     public DTCCompareUI() {
         initComponents();
+        // by default report is in English
+        reportLanguage="English";
         //  Define a keyword attribute for each line of text
-        keyWordFile = new SimpleAttributeSet();
-        StyleConstants.setBold(keyWordFile, true);
-        StyleConstants.setItalic(keyWordFile, false);
-        SimpleAttributeSet keyWordTotalFailures = new SimpleAttributeSet();
-        StyleConstants.setBold(keyWordTotalFailures, true);
-        StyleConstants.setFontSize(keyWordTotalFailures, 14);
-        SimpleAttributeSet keyWordDetailledFailures = new SimpleAttributeSet();
-        StyleConstants.setBold(keyWordDetailledFailures, true);
-        StyleConstants.setFontSize(keyWordDetailledFailures, 10);
+        Title = new SimpleAttributeSet();
+        StyleConstants.setBold(Title, true);
+        StyleConstants.setItalic(Title, false);
+        StyleConstants.setFontSize(Title, 12);
+        
+        EcuStyle = new SimpleAttributeSet();
+        StyleConstants.setBold(EcuStyle, true);
+        StyleConstants.setItalic(EcuStyle, false);
+        StyleConstants.setFontSize(EcuStyle, 14);
+        StyleConstants.setForeground(EcuStyle, Color.blue);
 
-        doc = jTextPaneOutput.getStyledDocument();
+        DtcStyle = new SimpleAttributeSet();
+        StyleConstants.setBold(DtcStyle, false);
+        StyleConstants.setItalic(DtcStyle, true);
+        StyleConstants.setFontSize(DtcStyle, 12);
+        StyleConstants.setForeground(DtcStyle, Color.black);
+        
         inRed = new SimpleAttributeSet();
         StyleConstants.setForeground(inRed, Color.red);
+        inOrange = new SimpleAttributeSet();
+        StyleConstants.setForeground(inOrange, Color.orange);
         inGreen = new SimpleAttributeSet();
         StyleConstants.setForeground(inGreen, Color.green);
         inBlack = new SimpleAttributeSet();
@@ -96,7 +104,7 @@ public class DTCCompareUI extends javax.swing.JFrame {
                             // Loop them through
                             for (File file : files) {
                                 // Print out the file path
-                                System.out.println("File path is '" + file.getName() + "'.");
+                                /*System.out.println("File path is '" + file.getName() + "'.");*/
                                 if (checkFileIsDTCFile(file, true)) {
                                     //Dtc file is ok, let's proceed
                                     dTCDocLeftIsOk=true;
@@ -107,11 +115,15 @@ public class DTCCompareUI extends javax.swing.JFrame {
                                     //  Add some text
                                     try {
                                         jTextPaneLeft.setText("");
-                                        doc.insertString(0, "" + file.getName() + "\n\n", keyWordFile);
-                                        doc.insertString(doc.getLength(), "Vehicle with " + dTCDocLeft.totalFailuresCount + " failures\n", keyWordFile);
+                                        doc.insertString(0, "" + file.getName() + "\n\n", Title);
+                                        doc.insertString(doc.getLength(), ""+dTCDocLeft.title+"\n", Title);
+
+                                        /*
+                                        doc.insertString(doc.getLength(), "Vehicle with " + dTCDocLeft.totalFailuresCount + " failures\n", Title);
                                         doc.insertString(doc.getLength(), "" + dTCDocLeft.currentFailuresCount + " current Failure, " + dTCDocLeft.historicalFailuresCOunt
                                                 + " historical Failures\n", keyWordDetailledFailures);
                                         doc.insertString(doc.getLength(), "" + dTCDocLeft.dtcWithTestNotCompletedCount + " DTC with test not completed\n", keyWordDetailledFailures);
+                                        */
                                     } catch (Exception e) {
                                         System.out.println(e);
                                     }
@@ -176,7 +188,7 @@ public class DTCCompareUI extends javax.swing.JFrame {
                             for (File file : files) {
 
                                 // Print out the file path
-                                System.out.println("File path is '" + file.getName() + "'.");
+                                /*System.out.println("File path is '" + file.getName() + "'.");*/
                                 if (checkFileIsDTCFile(file,false)){
                                     //it is a DTC file, let's proceed
                                     dTCDocRightIsOk=true;
@@ -187,11 +199,13 @@ public class DTCCompareUI extends javax.swing.JFrame {
                                     //  Add some text to the drop text to list the total failures
                                     try {
                                         jTextPaneRight.setText("");
-                                        doc.insertString(0, ""+file.getName()+"\n\n", keyWordFile);
-                                        doc.insertString(doc.getLength(), "Vehicle with "+dTCDocRight.totalFailuresCount+" failures\n", keyWordFile);
+                                        doc.insertString(0, ""+file.getName()+"\n\n", Title);                                        
+                                        doc.insertString(doc.getLength(), ""+dTCDocRight.title+"\n", Title);
+
+                                        /*doc.insertString(doc.getLength(), "Vehicle with "+dTCDocRight.totalFailuresCount+" failures\n", keyWordFile);
                                         doc.insertString(doc.getLength(), ""+dTCDocRight.currentFailuresCount+" current Failure, "+dTCDocRight.historicalFailuresCOunt+
                                                 " historical Failures\n", keyWordDetailledFailures);
-                                        doc.insertString(doc.getLength(), ""+dTCDocRight.dtcWithTestNotCompletedCount+" DTC with test not completed\n", keyWordDetailledFailures);
+                                        doc.insertString(doc.getLength(), ""+dTCDocRight.dtcWithTestNotCompletedCount+" DTC with test not completed\n", keyWordDetailledFailures);*/
                                     } catch (Exception e) {
                                         System.out.println(e);
                                     }
@@ -283,33 +297,99 @@ public class DTCCompareUI extends javax.swing.JFrame {
 
     /**
      * 
+     * @param str
+     * @return 
+     */
+    private String translate (TypeDtcFailure str){
+        String convertedString = "";
+        switch (reportLanguage) {
+            case "French":
+                if (str.equals(TypeDtcFailure.CurrentFailure)) {
+                    convertedString = "Panne présente";
+                }
+                if (str.equals(TypeDtcFailure.HistoricalFailure)) {
+                    convertedString = "Panne mémorisée";
+                }
+                break;
+            case "English":
+                if (str.equals(TypeDtcFailure.CurrentFailure)) {
+                    convertedString = "Current Failure";
+                }
+                if (str.equals(TypeDtcFailure.HistoricalFailure)) {
+                    convertedString = "Historical Failure";
+                }
+                break;
+            default:
+                convertedString = "";
+        }
+        return convertedString;    
+    }
+    
+    /**
+     *
+     * @param str
+     * @return
+     */
+    private String translate (TypeEcuFailure str){
+        String convertedString = "";
+        switch (reportLanguage) {
+            case "French":
+                if (str.equals(TypeEcuFailure.FailuresDetected)) {
+                    convertedString = "Pannes détectées";
+                }
+                if (str.equals(TypeEcuFailure.UnderTest)) {
+                    convertedString = "en cours de test";
+                }
+                if (str.equals(TypeEcuFailure.NoFailureDetected)) {
+                    convertedString = "Aucune panne détectée";
+                }
+                break;
+            case "English":
+                if (str.equals(TypeEcuFailure.FailuresDetected)) {
+                    convertedString = "Failures detected";
+                }
+                if (str.equals(TypeEcuFailure.UnderTest)) {
+                    convertedString = "under test";
+                }
+                if (str.equals(TypeEcuFailure.NoFailureDetected)) {
+                    convertedString = "No failure detected";
+                }
+                break;
+            default:
+                convertedString = "";
+        }
+        return convertedString;    
+    }
+    /**
+     * 
      * @param ecuLeft
      * @param ecuRight 
      */
     public void displayECU(ECU ecuLeft, ECU ecuRight) {
         try {
+            StyledDocument doc = jTextPaneOutput.getStyledDocument();
 
-            doc.insertString(doc.getLength(), ecuLeft.name + ": ", keyWordFile);
+            doc.insertString(doc.getLength(), ecuLeft.name + ": ", EcuStyle);
             switch (ecuLeft.failuresStatus) {
                 case FailuresDetected:
-                    doc.insertString(doc.getLength(), "" + ecuLeft.failuresStatus, inRed);
+                    doc.insertString(doc.getLength(), "" + translate(ecuLeft.failuresStatus), inRed);
                     break;
                 case NoFailureDetected:
-                    doc.insertString(doc.getLength(), "" + ecuLeft.failuresStatus, inGreen);
+                    doc.insertString(doc.getLength(), "" + translate(ecuLeft.failuresStatus), inGreen);
                     break;
                 default:
-                    doc.insertString(doc.getLength(), "" + ecuLeft.failuresStatus, inBlack);
+                    doc.insertString(doc.getLength(), "" + translate(ecuLeft.failuresStatus), inBlack);
                     break;
             }
             switch (ecuRight.failuresStatus) {
                 case FailuresDetected:
-                    doc.insertString(doc.getLength(), " --> " + ecuRight.failuresStatus + "\n", inRed);
+                    doc.insertString(doc.getLength(), " --> " + translate(ecuRight.failuresStatus) + "\n", inRed);
                     break;
                 case NoFailureDetected:
-                    doc.insertString(doc.getLength(), " --> " + ecuRight.failuresStatus + "\n", inGreen);
+                    doc.insertString(doc.getLength(), " --> " + translate(ecuRight.failuresStatus) + "\n", inGreen);
                     break;
                 default:
-                    doc.insertString(doc.getLength(), " --> " + ecuRight.failuresStatus + "\n", inBlack);
+                    doc.insertString(doc.getLength(), " --> " + translate(ecuRight.failuresStatus) + "\n", inBlack);
                     break;
             }
         } catch (BadLocationException ex) {
@@ -322,15 +402,14 @@ public class DTCCompareUI extends javax.swing.JFrame {
      */
     public void startCompareDtcFiles() throws BadLocationException {
         boolean noMatch = true;
+            StyledDocument doc = jTextPaneOutput.getStyledDocument();
 
         if (dTCDocLeftIsOk & dTCDocRightIsOk) {
-            //dTCDocLeftIsOk = false;
-            //dTCDocRightIsOk = false;
-            System.out.println("Start comparing files");
             /* check the two DTC files have the same list of DTC
                If it is not the case, print
                ECU xxx was present in File 1 but not listed in File 2
              */
+            jTextPaneOutput.setText("");
             for (ECU ecuFromLeft : dTCDocLeft.ecuList) {
                 for (ECU ecuFromRight : dTCDocRight.ecuList) {
                     if (!ecuFromLeft.name.equals(ecuFromRight.name)) {
@@ -373,60 +452,111 @@ public class DTCCompareUI extends javax.swing.JFrame {
                ECU ccc No Under test --> Failures detected
              */
             //StyledDocument doc = jTextPaneOutput.getStyledDocument();
+            if (displayDiffOnECU) {
+                for (ECU ecuLeft : dTCDocLeft.ecuList) {
+                    for (ECU ecuRight : dTCDocRight.ecuList) {
+                        // Enter here on a ECU that is present on LEft and Right doc
+                        if (ecuRight.name.equals(ecuLeft.name)) {
+                            //detect NO Failure or Under test --> Failures
+                            if ((ecuLeft.hasNoFailures || ecuLeft.isUnderTest) && ecuRight.hasFailures) {
+                                //display ECU
+                                displayECU(ecuLeft, ecuRight);
+                                //then display all DTC of the right ECU displayDiffOnDTC
+                                if (displayDiffOnDTC) {
+                                    for (DTC dtc : ecuRight.DtcList) {
+                                        doc.insertString(doc.getLength(), dtc.name + " : ", DtcStyle);
+                                        if (reportLanguage.equals("English"))
+                                            doc.insertString(doc.getLength(), " Not present --> ", inGreen);
+                                        else if (reportLanguage.equals("French"))
+                                            doc.insertString(doc.getLength(), " Absent --> ", inGreen);
+                                            
+                                        if (dtc.isHistoricalFailure)
+                                            doc.insertString(doc.getLength(), translate(dtc.type) + "\n", inOrange);
+                                        else if (dtc.isCurrentFailure) {
+                                            doc.insertString(doc.getLength(), translate(dtc.type) + "\n", inRed);
+                                        }
+                                    }
+                                }
+                            }
+                            //detect Failures --> Failures
+                            Boolean match=false;
 
-            for (ECU ecuLeft : dTCDocLeft.ecuList) {
-                for (ECU ecuRight : dTCDocRight.ecuList) {
-                    //detect different failure type for the ECU between left and right
-                    if ((ecuRight.name.equals(ecuLeft.name)) &&
-                            (!ecuLeft.failuresStatus.equals(ecuRight.failuresStatus))) {
-                        System.out.println("ECU " + ecuLeft.name + ": " + ecuLeft.failuresStatus + " --> " + ecuRight.failuresStatus);
-                        //Display only if the Check box of ECU diff is selected
-                        if (displayDiffOnECU) {
-                            //display ECU: failure type Left --> failure type right
-                            displayECU(ecuLeft,ecuRight);
-                        }  else {
-                            jTextPaneOutput.setText("");
-                        }
+                            if (ecuLeft.hasFailures&&ecuRight.hasFailures) {
+                                //display ECU only for ECU where DTC have changed or new
+                                for (DTC dtcRight : ecuRight.DtcList) {
+                                    match=false;
+                                    for (DTC dtcLeft : ecuLeft.DtcList) {
+                                        if (dtcLeft.name.equals(dtcRight.name)) {
+                                            match=true;
+                                            //detect Historical-->Current failure or Current Failure --> Historical on a common DTC
+                                            if (!dtcLeft.type.equals(dtcRight.type)) {
+                                                ecuRight.hasDtcEvolution=true;
+                                            }
+                                            break;
+                                        }
+                                        else
+                                            match=false;
+                                    }
+                                    if (!match)
+                                        ecuRight.hasDtcEvolution=true;
+                                }
 
-                    } else if (displayDiffOnDTC && ecuRight.name.equals(ecuLeft.name) &&
-                            (ecuRight.hasFailures && ecuLeft.hasFailures)) {
-                        //display ECU: failure type Left --> failure type right
-                        displayECU(ecuLeft,ecuRight);
-                        for (DTC dtcRight : ecuRight.DtcList) {
-                            for (DTC dtcLeft : ecuLeft.DtcList) {
-                                //detect Historical-->Current failure or Current Failure --> Historical on a common DTC
-                                if (dtcLeft.name.equals(dtcRight.name) && !dtcLeft.type.equals(dtcRight.type)) {                                 
-                                    doc.insertString(doc.getLength(), dtcRight.name + ": ", keyWordFile);
-                                    if (dtcLeft.isCurrentFailure) {
-                                        doc.insertString(doc.getLength(), dtcLeft.type + " --> ", inRed);
-                                    }
-                                    if (dtcLeft.isHistoricalFailure) {
-                                        doc.insertString(doc.getLength(), dtcLeft.type + " --> ", inBlack);
-                                    }
-                                    if (dtcRight.isCurrentFailure) {
-                                        doc.insertString(doc.getLength(), dtcRight.type + "\n", inRed);
-                                    }
-                                    if (dtcRight.isHistoricalFailure) {
-                                        doc.insertString(doc.getLength(), dtcRight.type + "\n", inBlack);
+                                //display ECUs that have evolution of their DTC or new DTC.                                                              
+                                if (ecuRight.hasDtcEvolution)
+                                    displayECU(ecuLeft, ecuRight);
+                                //then display only DTC that have changed between Left and Right
+                                if (displayDiffOnDTC) {
+                                    match=false;
+                                    for (DTC dtcRight : ecuRight.DtcList) {
+                                        match=false;
+                                        for (DTC dtcLeft : ecuLeft.DtcList) {                                            
+                                            //detect Historical-->Current failure or Current Failure --> Historical on a common DTC
+                                            if (dtcLeft.name.equals(dtcRight.name)){
+                                                match = true;
+                                                if (!dtcLeft.type.equals(dtcRight.type)) {                                                    
+                                                    doc.insertString(doc.getLength(), "* "+dtcRight.name + ":", DtcStyle);                                                    
+                                                    if (dtcLeft.isCurrentFailure) {
+                                                        doc.insertString(doc.getLength(), translate(dtcLeft.type) + " --> ", inRed);
+                                                    }
+                                                    if (dtcLeft.isHistoricalFailure) {
+                                                        doc.insertString(doc.getLength(), translate(dtcLeft.type) + " --> ", inOrange);
+                                                    }
+                                                    if (dtcRight.isCurrentFailure) {
+                                                        doc.insertString(doc.getLength(), translate(dtcRight.type) + "\n", inRed);
+                                                    }
+                                                    if (dtcRight.isHistoricalFailure) {
+                                                        doc.insertString(doc.getLength(), translate(dtcRight.type) + "\n", inOrange);
+                                                    }
+                                                }
+                                                if (dtcLeft.isCurrentFailure && dtcRight.isCurrentFailure){
+                                                    match = true;
+                                                }
+                                            }
+                                        }
+                                        //if DTC not found on left but present on right
+                                        if (!match) {
+                                            doc.insertString(doc.getLength(), dtcRight.name + " : ", DtcStyle);
+                                            if (reportLanguage.equals("English")) {
+                                                doc.insertString(doc.getLength(), " Not present --> ", inGreen);
+                                            } else if (reportLanguage.equals("French")) {
+                                                doc.insertString(doc.getLength(), " Absent --> ", inGreen);
+                                            }
+                                            if (dtcRight.isHistoricalFailure) {
+                                                doc.insertString(doc.getLength(), translate(dtcRight.type) + "\n", inOrange);
+                                            } else if (dtcRight.isCurrentFailure) {
+                                                doc.insertString(doc.getLength(), translate(dtcRight.type) + "\n", inRed);
+                                            }                                            
+                                        }
                                     }
                                 }
                             }
                         }
-                    } //now, check the changes of DTC inside the ECU if it has issues. compare right versus left
-                    // if ECU has no errors and before it had no error or was under test, display ll its DTC
-                    else if (displayDiffOnDTC && ecuRight.name.equals(ecuLeft.name) &&
-                            (ecuRight.hasFailures && (ecuLeft.hasNoFailures || ecuLeft.isUnderTest))) {
-                       //display ECU: failure type Left --> failure type right
-                        displayECU(ecuLeft, ecuRight);
-                        for (DTC dtc : ecuRight.DtcList) {
-                            doc.insertString(doc.getLength(), "" + dtc.name + " Not present --> " + dtc.type + "\n", inBlack);
-                        }
-                    } // if ECU right has error and it has also error in left, then compare status
-
-                    //System.out.println("ECU Left" + ecuLeft.name + ": " + ecuLeft.failuresStatus + " --> ECU Right "+ecuRight.name + ": "+ecuRight.failuresStatus);
+                    }
                 }
+            } else {
+                jTextPaneOutput.setText("");
             }
-        }     
+        }
     }
 
     /**
@@ -448,6 +578,8 @@ public class DTCCompareUI extends javax.swing.JFrame {
         jTextPaneOutput = new javax.swing.JTextPane();
         jCheckBoxECU = new javax.swing.JCheckBox();
         jCheckBoxDTC = new javax.swing.JCheckBox();
+        jToggleButtonFrench = new javax.swing.JToggleButton();
+        jToggleButtonEnglish = new javax.swing.JToggleButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
@@ -516,6 +648,21 @@ public class DTCCompareUI extends javax.swing.JFrame {
             }
         });
 
+        jToggleButtonFrench.setText("Français");
+        jToggleButtonFrench.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jToggleButtonFrenchActionPerformed(evt);
+            }
+        });
+
+        jToggleButtonEnglish.setSelected(true);
+        jToggleButtonEnglish.setText("English");
+        jToggleButtonEnglish.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jToggleButtonEnglishActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
@@ -526,17 +673,20 @@ public class DTCCompareUI extends javax.swing.JFrame {
                     .addComponent(jScrollPane3)
                     .addGroup(layout.createSequentialGroup()
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(jPanelLeft, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addGroup(layout.createSequentialGroup()
-                                .addComponent(jPanelLeft, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED))
-                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                                .addGap(6, 6, 6)
                                 .addComponent(jCheckBoxECU)
-                                .addGap(26, 26, 26)))
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                                .addComponent(jCheckBoxDTC)))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(jPanelRight, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addGroup(layout.createSequentialGroup()
-                                .addGap(36, 36, 36)
-                                .addComponent(jCheckBoxDTC)))))
+                                .addGap(6, 6, 6)
+                                .addComponent(jToggleButtonFrench)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(jToggleButtonEnglish))
+                            .addComponent(jPanelRight, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))))
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
         layout.setVerticalGroup(
@@ -549,7 +699,9 @@ public class DTCCompareUI extends javax.swing.JFrame {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(jCheckBoxDTC)
-                    .addComponent(jCheckBoxECU))
+                    .addComponent(jCheckBoxECU)
+                    .addComponent(jToggleButtonFrench)
+                    .addComponent(jToggleButtonEnglish))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jScrollPane3, javax.swing.GroupLayout.PREFERRED_SIZE, 550, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
@@ -573,7 +725,7 @@ public class DTCCompareUI extends javax.swing.JFrame {
     private void jCheckBoxDTCActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jCheckBoxDTCActionPerformed
         // TODO add your handling code here:
         displayDiffOnDTC = jCheckBoxDTC.isSelected();
-                jTextPaneOutput.setText("");
+        jTextPaneOutput.setText("");
 
         try {
             startCompareDtcFiles();
@@ -581,6 +733,28 @@ public class DTCCompareUI extends javax.swing.JFrame {
             Logger.getLogger(DTCCompareUI.class.getName()).log(Level.SEVERE, null, ex);
         }
     }//GEN-LAST:event_jCheckBoxDTCActionPerformed
+
+    private void jToggleButtonFrenchActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jToggleButtonFrenchActionPerformed
+        // TODO add your handling code here:
+        jToggleButtonEnglish.setSelected(false);
+        reportLanguage = "French";
+        try {
+            startCompareDtcFiles();
+        } catch (BadLocationException ex) {
+            Logger.getLogger(DTCCompareUI.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }//GEN-LAST:event_jToggleButtonFrenchActionPerformed
+
+    private void jToggleButtonEnglishActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jToggleButtonEnglishActionPerformed
+        // TODO add your handling code here:
+        jToggleButtonFrench.setSelected(false);
+        reportLanguage = "English";
+        try {
+            startCompareDtcFiles();
+        } catch (BadLocationException ex) {
+            Logger.getLogger(DTCCompareUI.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }//GEN-LAST:event_jToggleButtonEnglishActionPerformed
 
     /**
      * @param args the command line arguments
@@ -613,7 +787,7 @@ public class DTCCompareUI extends javax.swing.JFrame {
         java.awt.EventQueue.invokeLater(new Runnable() {
             public void run() {
                 new DTCCompareUI().setVisible(true);
-                System.out.println("File path is '.");
+                /*System.out.println("File path is '.");*/
             }
         });
     }
@@ -626,13 +800,16 @@ public class DTCCompareUI extends javax.swing.JFrame {
     private boolean dTCDocRightIsOk=false;
     private boolean displayDiffOnECU=false;
     private boolean displayDiffOnDTC=false;
-    private final StyledDocument doc;
     private final SimpleAttributeSet inRed;
     private final SimpleAttributeSet inGreen;
     private final SimpleAttributeSet inBlack;
-    private SimpleAttributeSet keyWordFile;
-
-           
+    private final SimpleAttributeSet inOrange;
+    private SimpleAttributeSet Title;
+    private final SimpleAttributeSet EcuStyle;
+    private final SimpleAttributeSet DtcStyle;
+    private String reportLanguage;
+       
+    
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JCheckBox jCheckBoxDTC;
     private javax.swing.JCheckBox jCheckBoxECU;
@@ -644,6 +821,8 @@ public class DTCCompareUI extends javax.swing.JFrame {
     private javax.swing.JTextPane jTextPaneLeft;
     private javax.swing.JTextPane jTextPaneOutput;
     private javax.swing.JTextPane jTextPaneRight;
+    private javax.swing.JToggleButton jToggleButtonEnglish;
+    private javax.swing.JToggleButton jToggleButtonFrench;
     // End of variables declaration//GEN-END:variables
 
 

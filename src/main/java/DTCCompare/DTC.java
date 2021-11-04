@@ -25,4 +25,5 @@ public class DTC {
         isCurrentFailure=type.equals(TypeDtcFailure.CurrentFailure);
         isHistoricalFailure=type.equals(TypeDtcFailure.HistoricalFailure);
     }
+    
 }

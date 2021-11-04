@@ -23,6 +23,7 @@ public class ECU {
     boolean hasFailures = false;
     boolean isUnderTest = false;
     boolean hasNoFailures = false;
+    boolean hasDtcEvolution =false;
     
     public ArrayList<DTC> DtcList = new ArrayList<>();
 

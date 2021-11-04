@@ -29,6 +29,10 @@ public class DTCDocument {
     public int historicalFailuresCOunt=0;
     public int dtcWithTestNotCompletedCount=0;
     public String fileName;
+    public String title;
+    public boolean isInFrench=false;
+    public boolean isInEnglish=false;
+    
     
     
     //default constructor    
@@ -42,7 +46,8 @@ public class DTCDocument {
     }
 
     /**
-     * parse the document and fill the ECU information and its DTC
+     * parse the document and fill the ECU information and its DTC.
+     * detect language based on title
      * @return 
      */
     public boolean parseAndFill() {
@@ -52,15 +57,26 @@ public class DTCDocument {
         DTC newDtc= null;
         // isolate the summary line where the generic info are present for the different failures count
         Element summary = doc.getElementById("summary");
-        System.out.println("summary" + summary.text());
-        String pattern = "Vehicle with ([0-9]+) failures ([0-9]+) Current Failure, ([0-9]+) Historical Failure ([0-9]+) DTC with test not completed";
-        Pattern r = Pattern.compile(pattern);
-        Matcher m = r.matcher(summary.text());
-        if (m.find()) {
-            totalFailuresCount = Integer.parseInt(m.group(1));
+        /*System.out.println("summary" + summary.text());*/
+        String s= summary.text();
+        title = s.replace(",","\n"); // TO DO Remplacer tous les chiffres par \nles chiffres en question
+        String patternEn = "Vehicle with .*";
+        String patternFr = "Véhicule avec .*";
+        String pattern;
+        Pattern rEn = Pattern.compile(patternEn);
+        Pattern rFr = Pattern.compile(patternFr);
+        Pattern r;
+        Matcher mEn = rEn.matcher(summary.text());
+        Matcher mFr = rFr.matcher(summary.text());
+        
+        this.isInEnglish = mEn.find();
+        this.isInFrench = mFr.find();
+        Matcher m = (this.isInEnglish)?mEn:(this.isInFrench)?mFr:null;
+        if (m!=null && m.find()) {
+            /*totalFailuresCount = Integer.parseInt(m.group(1));
             currentFailuresCount = Integer.parseInt(m.group(2));
             historicalFailuresCOunt = Integer.parseInt(m.group(3));
-            dtcWithTestNotCompletedCount = Integer.parseInt(m.group(4));
+            dtcWithTestNotCompletedCount = Integer.parseInt(m.group(4));*/
         } else {
             System.out.println("NO MATCH");
         }
@@ -69,10 +85,15 @@ public class DTCDocument {
         //<LI class=tdmecu><A href="#ID0AB01B0A" name=#tocID0AB01B0A>IDM-CDM - <B>CDM_Sweet200_V2.4</B></A>&nbsp; &nbsp; <SPAN class=hasfailure>Failures detected</SPAN>
         Elements ecus = doc.getElementsByClass("tdmecu");
         for (Element ecu : ecus) {
-            //System.out.println("ECU: " + ecu.getElementsByClass("tdmecu").text());
+            /*System.out.println("ECU: " + ecu.getElementsByClass("tdmecu").text());*/
             String ECU = ecu.getElementsByClass("tdmecu").text();
-            pattern = "(.*) - (.*) [Failures detected|Some devices are still under test|No failure detected]";
-            r = Pattern.compile(pattern);
+            patternEn = "(.*) - (.*) [Failures detected|Some devices are still under test|No failure detected]";
+            patternFr = "(.*) - (.*) [Pannes détectées sur ce calculateur|Certains organes sont en cours de test]";
+            
+            if (this.isInEnglish){
+                r = Pattern.compile(patternEn);
+            } else
+                r = Pattern.compile(patternFr);
             m = r.matcher(ECU);
             if (m.find()) {
                 /*System.out.println("ECU name: " + m.group(1));
@@ -104,7 +125,11 @@ public class DTCDocument {
                 System.out.println("DTC: " + dtc.getElementsByClass("tdmwarning").text());*/
 
                 String sDTC = dtc.getElementsByClass("tdmdev").text();
-                pattern = "(.+) (Current Failure|Historical Failure)";
+                if (this.isInEnglish)                    
+                    pattern = "(.+) (Current Failure|Historical Failure)";
+                else
+                    pattern = "(.+) (Panne|Panne présente|Pannes détectées sur ce calculateur)";
+ 
                 r = Pattern.compile(pattern);
                 m = r.matcher(sDTC);
                 if (m.find()) {
@@ -116,7 +141,10 @@ public class DTCDocument {
                     System.out.println("DTC: "+m.group(1)+" --> "+dtcFailureType);
                     newDtc = new DTC(m.group(1), dtcFailureType);
                     newEcu.DtcList.add(newDtc);
-                }
+                } else {
+                System.out.println("NO MATCH FOR DTC");
+            }
+                
             }
             ecuList.add(newEcu);
 
