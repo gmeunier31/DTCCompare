@@ -7,7 +7,7 @@ package DTCCompare;
 
 enum TypeDtcFailure {
     CurrentFailure,
-    HistoricalFailure
+    HistoricalFailure        
 }
 /**
  *
@@ -18,12 +18,27 @@ public class DTC {
     TypeDtcFailure type;
     boolean isCurrentFailure=false;
     boolean isHistoricalFailure=false;
+    boolean isNew=false;
+    boolean fromCurrentToHistorical=false;
+    boolean fromHistoricalToCurrent=false;
     
     // constructor
+
+    /**
+     *
+     * @param n
+     * @param t
+     */
     public DTC(String n, TypeDtcFailure t){
         name=n;type=t;
         isCurrentFailure=type.equals(TypeDtcFailure.CurrentFailure);
         isHistoricalFailure=type.equals(TypeDtcFailure.HistoricalFailure);
+        fromCurrentToHistorical=false;
+        fromHistoricalToCurrent=false;
+    }
+    
+    public DTC(){
+        
     }
     
 }

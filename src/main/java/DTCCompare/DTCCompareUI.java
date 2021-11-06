@@ -6,6 +6,7 @@
 package DTCCompare;
 
 import java.awt.Color;
+import java.awt.Desktop;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.Transferable;
 import java.awt.dnd.DnDConstants;
@@ -14,15 +15,33 @@ import java.awt.dnd.DropTargetDragEvent;
 import java.awt.dnd.DropTargetDropEvent;
 import java.awt.dnd.DropTargetEvent;
 import java.awt.dnd.DropTargetListener;
+import java.awt.event.ComponentEvent;
+import java.awt.event.ComponentListener;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.Writer;
 import java.util.List;
+import java.util.Scanner;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import javax.swing.JDialog;
+import javax.swing.JFrame;
+import javax.swing.JOptionPane;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.SimpleAttributeSet;
 import javax.swing.text.StyleConstants;
 import javax.swing.text.StyledDocument;
+import org.apache.commons.io.FilenameUtils;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -103,8 +122,12 @@ public class DTCCompareUI extends javax.swing.JFrame {
                             List<File> files = (List) transferable.getTransferData(flavor);
                             // Loop them through
                             for (File file : files) {
-                                // Print out the file path
-                                /*System.out.println("File path is '" + file.getName() + "'.");*/
+                                // Print out the file name
+                                System.out.println("File name is '" + file.getName() + "'.");
+                                System.out.println("File path is '" + file.getAbsolutePath() + "'.");
+                                System.out.println("File path is '" + file.getParent()+ "'.");
+
+
                                 if (checkFileIsDTCFile(file, true)) {
                                     //Dtc file is ok, let's proceed
                                     dTCDocLeftIsOk=true;
@@ -128,7 +151,7 @@ public class DTCCompareUI extends javax.swing.JFrame {
                                         System.out.println(e);
                                     }
                                     //start comparison (it is inside the function that the final decision is taken
-                                    startCompareDtcFiles();
+                                    compareDtcFiles();
                                 } else {
                                     jTextPaneLeft.setText(file.getName() + ": KO");
                                     dTCDocLeftIsOk = false;
@@ -210,7 +233,7 @@ public class DTCCompareUI extends javax.swing.JFrame {
                                         System.out.println(e);
                                     }
                                     //start comparison (it is inside the function that the final decision is taken
-                                    startCompareDtcFiles();
+                                    compareDtcFiles();
                                 } else {
                                     jTextPaneRight.setText(file.getName()+": KO");
                                     dTCDocRightIsOk=false;
@@ -243,6 +266,7 @@ public class DTCCompareUI extends javax.swing.JFrame {
             public void dragExit(DropTargetEvent dte) {
             }
         });
+        
     }
     /**
      * This method is called to verify dropped file is an .html file and its
@@ -400,7 +424,7 @@ public class DTCCompareUI extends javax.swing.JFrame {
     /**
      * this method is called when the two files are ok and have been dropped
      */
-    public void startCompareDtcFiles() throws BadLocationException {
+    public void compareDtcFiles() throws BadLocationException {
         boolean noMatch = true;
             StyledDocument doc = jTextPaneOutput.getStyledDocument();
 
@@ -421,8 +445,8 @@ public class DTCCompareUI extends javax.swing.JFrame {
                     }
                 }
                 if (noMatch) {
-                    System.out.println("" + ecuFromLeft.name + " is  present in " + dTCDocLeft.fileName
-                            + " but not in " + dTCDocRight.fileName);
+                    System.out.println("" + ecuFromLeft.name + " is  present in " + dTCDocLeft.file.getName()
+                            + " but not in " + dTCDocRight.file.getName());
                 }
             }
             /* ECU yyy was  present in File 2 and is not present in File 1 */
@@ -437,8 +461,8 @@ public class DTCCompareUI extends javax.swing.JFrame {
                     }
                 }
                 if (noMatch) {
-                    System.out.println("" + ecuFromRight.name + " is  present in " + dTCDocRight.fileName
-                            + " but not in " + dTCDocLeft.fileName);
+                    System.out.println("" + ecuFromRight.name + " is  present in " + dTCDocRight.file.getName()
+                            + " but not in " + dTCDocLeft.file.getName());
                 }
             }
 
@@ -455,15 +479,17 @@ public class DTCCompareUI extends javax.swing.JFrame {
             if (displayDiffOnECU) {
                 for (ECU ecuLeft : dTCDocLeft.ecuList) {
                     for (ECU ecuRight : dTCDocRight.ecuList) {
-                        // Enter here on a ECU that is present on LEft and Right doc
+                        // Enter here on a ECU that is present on Left and Right doc
                         if (ecuRight.name.equals(ecuLeft.name)) {
                             //detect NO Failure or Under test --> Failures
                             if ((ecuLeft.hasNoFailures || ecuLeft.isUnderTest) && ecuRight.hasFailures) {
+                                ecuRight.hasStatusEvolution=true;
                                 //display ECU
                                 displayECU(ecuLeft, ecuRight);
                                 //then display all DTC of the right ECU displayDiffOnDTC
                                 if (displayDiffOnDTC) {
-                                    for (DTC dtc : ecuRight.DtcList) {
+                                    for (DTC dtc : ecuRight.dtcList) {
+                                        dtc.isNew=true;
                                         doc.insertString(doc.getLength(), dtc.name + " : ", DtcStyle);
                                         if (reportLanguage.equals("English"))
                                             doc.insertString(doc.getLength(), " Not present --> ", inGreen);
@@ -480,17 +506,20 @@ public class DTCCompareUI extends javax.swing.JFrame {
                             }
                             //detect Failures --> Failures
                             Boolean match=false;
-
-                            if (ecuLeft.hasFailures&&ecuRight.hasFailures) {
+                            if (ecuLeft.hasFailures && ecuRight.hasFailures) {
                                 //display ECU only for ECU where DTC have changed or new
-                                for (DTC dtcRight : ecuRight.DtcList) {
+                                for (DTC dtcRight : ecuRight.dtcList) {
                                     match=false;
-                                    for (DTC dtcLeft : ecuLeft.DtcList) {
+                                    for (DTC dtcLeft : ecuLeft.dtcList) {
                                         if (dtcLeft.name.equals(dtcRight.name)) {
                                             match=true;
                                             //detect Historical-->Current failure or Current Failure --> Historical on a common DTC
                                             if (!dtcLeft.type.equals(dtcRight.type)) {
                                                 ecuRight.hasDtcEvolution=true;
+                                                dtcRight.fromCurrentToHistorical=(dtcLeft.isCurrentFailure && 
+                                                        dtcRight.isHistoricalFailure);
+                                                dtcRight.fromHistoricalToCurrent=(dtcLeft.isHistoricalFailure && 
+                                                        dtcRight.isCurrentFailure);
                                             }
                                             break;
                                         }
@@ -505,11 +534,10 @@ public class DTCCompareUI extends javax.swing.JFrame {
                                 if (ecuRight.hasDtcEvolution)
                                     displayECU(ecuLeft, ecuRight);
                                 //then display only DTC that have changed between Left and Right
-                                if (displayDiffOnDTC) {
-                                    match=false;
-                                    for (DTC dtcRight : ecuRight.DtcList) {
+                                if (displayDiffOnDTC) {                                    
+                                    for (DTC dtcRight : ecuRight.dtcList) {
                                         match=false;
-                                        for (DTC dtcLeft : ecuLeft.DtcList) {                                            
+                                        for (DTC dtcLeft : ecuLeft.dtcList) {                                            
                                             //detect Historical-->Current failure or Current Failure --> Historical on a common DTC
                                             if (dtcLeft.name.equals(dtcRight.name)){
                                                 match = true;
@@ -527,6 +555,10 @@ public class DTCCompareUI extends javax.swing.JFrame {
                                                     if (dtcRight.isHistoricalFailure) {
                                                         doc.insertString(doc.getLength(), translate(dtcRight.type) + "\n", inOrange);
                                                     }
+                                                    dtcRight.fromCurrentToHistorical = (dtcLeft.isCurrentFailure
+                                                            && dtcRight.isHistoricalFailure);
+                                                    dtcRight.fromHistoricalToCurrent = (dtcLeft.isHistoricalFailure
+                                                            && dtcRight.isCurrentFailure);
                                                 }
                                                 if (dtcLeft.isCurrentFailure && dtcRight.isCurrentFailure){
                                                     match = true;
@@ -536,6 +568,7 @@ public class DTCCompareUI extends javax.swing.JFrame {
                                         //if DTC not found on left but present on right
                                         if (!match) {
                                             doc.insertString(doc.getLength(), dtcRight.name + " : ", DtcStyle);
+                                            dtcRight.isNew=true;
                                             if (reportLanguage.equals("English")) {
                                                 doc.insertString(doc.getLength(), " Not present --> ", inGreen);
                                             } else if (reportLanguage.equals("French")) {
@@ -576,10 +609,15 @@ public class DTCCompareUI extends javax.swing.JFrame {
         jTextPaneLeft = new javax.swing.JTextPane();
         jScrollPane3 = new javax.swing.JScrollPane();
         jTextPaneOutput = new javax.swing.JTextPane();
+        jPanel1 = new javax.swing.JPanel();
+        jLabel2 = new javax.swing.JLabel();
         jCheckBoxECU = new javax.swing.JCheckBox();
         jCheckBoxDTC = new javax.swing.JCheckBox();
+        jLabel1 = new javax.swing.JLabel();
         jToggleButtonFrench = new javax.swing.JToggleButton();
         jToggleButtonEnglish = new javax.swing.JToggleButton();
+        jTextFieldTag = new javax.swing.JTextField();
+        jButtonGenerateHtmlReport = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
@@ -588,6 +626,11 @@ public class DTCCompareUI extends javax.swing.JFrame {
         jTextPaneRight.setEditable(false);
         jTextPaneRight.setFont(new java.awt.Font("Dialog", 2, 12)); // NOI18N
         jTextPaneRight.setText("Drop DTC File 2 here!");
+        jTextPaneRight.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                jTextPaneRightMouseClicked(evt);
+            }
+        });
         jScrollPane1.setViewportView(jTextPaneRight);
 
         javax.swing.GroupLayout jPanelRightLayout = new javax.swing.GroupLayout(jPanelRight);
@@ -612,6 +655,11 @@ public class DTCCompareUI extends javax.swing.JFrame {
         jTextPaneLeft.setEditable(false);
         jTextPaneLeft.setFont(new java.awt.Font("Dialog", 2, 12)); // NOI18N
         jTextPaneLeft.setText("Drop DTC File1 here");
+        jTextPaneLeft.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                jTextPaneLeftMouseClicked(evt);
+            }
+        });
         jScrollPane2.setViewportView(jTextPaneLeft);
 
         javax.swing.GroupLayout jPanelLeftLayout = new javax.swing.GroupLayout(jPanelLeft);
@@ -634,6 +682,10 @@ public class DTCCompareUI extends javax.swing.JFrame {
         jScrollPane3.setBorder(javax.swing.BorderFactory.createBevelBorder(javax.swing.border.BevelBorder.RAISED, null, java.awt.Color.white, null, null));
         jScrollPane3.setViewportView(jTextPaneOutput);
 
+        jPanel1.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 0, 0)));
+
+        jLabel2.setText("Select what to see on report");
+
         jCheckBoxECU.setText("Diff on ECU");
         jCheckBoxECU.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -647,6 +699,8 @@ public class DTCCompareUI extends javax.swing.JFrame {
                 jCheckBoxDTCActionPerformed(evt);
             }
         });
+
+        jLabel1.setText("Select report language");
 
         jToggleButtonFrench.setText("Français");
         jToggleButtonFrench.addActionListener(new java.awt.event.ActionListener() {
@@ -663,48 +717,97 @@ public class DTCCompareUI extends javax.swing.JFrame {
             }
         });
 
+        jTextFieldTag.setFont(new java.awt.Font("sansserif", 2, 10)); // NOI18N
+        jTextFieldTag.setText("Enter Tag to be present in htlm report");
+        jTextFieldTag.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jTextFieldTagActionPerformed(evt);
+            }
+        });
+
+        javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
+        jPanel1.setLayout(jPanel1Layout);
+        jPanel1Layout.setHorizontalGroup(
+            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel1Layout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(jPanel1Layout.createSequentialGroup()
+                        .addComponent(jLabel2)
+                        .addGap(83, 83, 83)
+                        .addComponent(jLabel1))
+                    .addGroup(jPanel1Layout.createSequentialGroup()
+                        .addComponent(jCheckBoxECU)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addComponent(jCheckBoxDTC)
+                        .addGap(49, 49, 49)
+                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(jTextFieldTag, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addGroup(jPanel1Layout.createSequentialGroup()
+                                .addComponent(jToggleButtonFrench)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(jToggleButtonEnglish)))))
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+        );
+        jPanel1Layout.setVerticalGroup(
+            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel1Layout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jLabel2)
+                    .addComponent(jLabel1))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jCheckBoxECU)
+                    .addComponent(jCheckBoxDTC)
+                    .addComponent(jToggleButtonFrench)
+                    .addComponent(jToggleButtonEnglish))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 12, Short.MAX_VALUE)
+                .addComponent(jTextFieldTag, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addContainerGap())
+        );
+
+        jButtonGenerateHtmlReport.setText("Generate HTML");
+        jButtonGenerateHtmlReport.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jButtonGenerateHtmlReportActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addContainerGap()
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                    .addComponent(jScrollPane3)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(layout.createSequentialGroup()
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(jPanelLeft, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addGroup(layout.createSequentialGroup()
-                                .addGap(6, 6, 6)
-                                .addComponent(jCheckBoxECU)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                                .addComponent(jCheckBoxDTC)))
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addGroup(layout.createSequentialGroup()
-                                .addGap(6, 6, 6)
-                                .addComponent(jToggleButtonFrench)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(jToggleButtonEnglish))
-                            .addComponent(jPanelRight, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))))
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                        .addContainerGap()
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                            .addComponent(jScrollPane3, javax.swing.GroupLayout.PREFERRED_SIZE, 466, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addGroup(javax.swing.GroupLayout.Alignment.LEADING, layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
+                                .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                .addGroup(layout.createSequentialGroup()
+                                    .addComponent(jPanelLeft, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                                    .addComponent(jPanelRight, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))))
+                    .addGroup(layout.createSequentialGroup()
+                        .addGap(184, 184, 184)
+                        .addComponent(jButtonGenerateHtmlReport)))
+                .addContainerGap(14, Short.MAX_VALUE))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
                 .addContainerGap()
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(jPanelRight, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jPanelLeft, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(jCheckBoxDTC)
-                    .addComponent(jCheckBoxECU)
-                    .addComponent(jToggleButtonFrench)
-                    .addComponent(jToggleButtonEnglish))
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addComponent(jPanelLeft, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(jPanelRight, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addGap(18, 18, 18)
+                .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jScrollPane3, javax.swing.GroupLayout.PREFERRED_SIZE, 550, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addComponent(jButtonGenerateHtmlReport)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 8, Short.MAX_VALUE)
+                .addComponent(jScrollPane3, javax.swing.GroupLayout.PREFERRED_SIZE, 550, javax.swing.GroupLayout.PREFERRED_SIZE))
         );
 
         pack();
@@ -716,7 +819,7 @@ public class DTCCompareUI extends javax.swing.JFrame {
         jTextPaneOutput.setText("");
 
         try {
-            startCompareDtcFiles();
+            compareDtcFiles();
         } catch (BadLocationException ex) {
             Logger.getLogger(DTCCompareUI.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -728,7 +831,7 @@ public class DTCCompareUI extends javax.swing.JFrame {
         jTextPaneOutput.setText("");
 
         try {
-            startCompareDtcFiles();
+            compareDtcFiles();
         } catch (BadLocationException ex) {
             Logger.getLogger(DTCCompareUI.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -739,7 +842,7 @@ public class DTCCompareUI extends javax.swing.JFrame {
         jToggleButtonEnglish.setSelected(false);
         reportLanguage = "French";
         try {
-            startCompareDtcFiles();
+            compareDtcFiles();
         } catch (BadLocationException ex) {
             Logger.getLogger(DTCCompareUI.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -750,12 +853,198 @@ public class DTCCompareUI extends javax.swing.JFrame {
         jToggleButtonFrench.setSelected(false);
         reportLanguage = "English";
         try {
-            startCompareDtcFiles();
+            compareDtcFiles();
         } catch (BadLocationException ex) {
             Logger.getLogger(DTCCompareUI.class.getName()).log(Level.SEVERE, null, ex);
         }
     }//GEN-LAST:event_jToggleButtonEnglishActionPerformed
 
+    private void jTextFieldTagActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jTextFieldTagActionPerformed
+        // TODO add your handling code here:
+        tagForHtmlreport=jTextFieldTag.getText();
+    }//GEN-LAST:event_jTextFieldTagActionPerformed
+
+    /**
+     * Generate the html file. 
+     * First, duplicate the file droped on Right drop box
+     * Second, insert the html tag for ECU and DTC in the duplicated file
+     * Third, search for ECU whose status has changed and put the label
+     * Fourth, same thing for DTC
+     * @param evt 
+     */
+    private void jButtonGenerateHtmlReportActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButtonGenerateHtmlReportActionPerformed
+        // TODO add your handling code here:
+        JOptionPane pane;
+        
+        if(dTCDocLeftIsOk && dTCDocRightIsOk){
+            
+            pane = new JOptionPane("The TAG: " + tagForHtmlreport + " will be added in " + dTCDocRight.file.getName() + "\n");
+            d = pane.createDialog((JFrame) null, "Generate HTML report");           
+        } else {
+            pane = new JOptionPane("Drop 2 html files first! \n");
+            d = pane.createDialog((JFrame) null, "Generate HTML report");
+            System.out.println("Test");
+        }
+
+        d.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosed(WindowEvent e) {
+                System.out.println("jdialog window closed event received");
+            }
+
+            @Override
+            public void windowClosing(WindowEvent e) {
+                System.out.println("jdialog window closing event received");
+            }
+        });
+
+        d.addComponentListener(new ComponentListener() {
+            @Override
+            public void componentHidden(ComponentEvent e) {
+                try {
+                    System.out.println("dialog hidden");
+                    //check output file for html report already exists, if yes, delete it
+                    String aa =dTCDocRight.file.getParent()+"\\"+
+                            FilenameUtils.removeExtension(dTCDocRight.file.getName())+
+                            "_DTCCompare.html";
+                    File htmlReport = new File(aa);
+
+                    if (htmlReport.exists() && htmlReport.isFile()) {
+                        htmlReport.delete();
+                    }
+                    htmlReport.createNewFile();
+                    //copyFileUsingStream(dTCDocRight.file,htmlReport);
+                    //now, parse output file and insert the TAG definition
+                    String tagECUStyle = ".mytagecu    { color:  #ffffff; background-color: #6600ff; font-size: 90%; font-style: italic; font-weight: bold; border:1px solid #ffffff; padding-left:4px; padding-right:4px;}";
+                    String tagDTCStyle= ".mytagdtc    { font-size: 90%; font-weight: bold ; color: #6600ff;}";
+                    String tagECU =	"&nbsp;<SPAN class=mytagecu>"+tagForHtmlreport+"</SPAN>";
+                    String tagDTCFromCurrentToHistorical =    "&nbsp;<SPAN class=mytagdtc>"+tagForHtmlreport+": Current --> Historical</SPAN>";
+                    String tagDTCFromHistoricaltoCurrent =    "&nbsp;<SPAN class=mytagdtc>"+tagForHtmlreport+": Historical --> Current</SPAN>";
+                    String tagDTCNew =    "&nbsp;<SPAN class=mytagdtc>"+tagForHtmlreport+": absent --> New</SPAN>";
+
+                    final Scanner scanner = new Scanner(dTCDocRight.file);
+                    Writer output;
+                    output = new BufferedWriter(new FileWriter(htmlReport,true));
+                    
+                    Pattern underTestPattern = Pattern.compile("\\.underTest\\s*\\{\\s*color\\:");
+                    Pattern ecuPattern = Pattern.compile("(\\<LI\\s*class\\=tdmecu.*\\>)(.*)(\\s+\\-\\s+\\<B.*)");
+                    Pattern dtcPattern = Pattern.compile("(\\<LI\\s*class\\=tdmdev.*\\>)(.*)(\\<\\/A.*)(\\<\\/FONT.*)");
+                    Matcher underTestMatcher;
+                    Matcher ecuMatcher;
+                    Matcher dtcMatcher;
+                    ECU ecuFromDocRight = new ECU();
+                    DTC dtcFromEcuRight = new DTC();
+                    while (scanner.hasNextLine()){
+                        final String lineFromFile = scanner.nextLine();
+                         underTestMatcher = underTestPattern.matcher(lineFromFile);
+                         ecuMatcher = ecuPattern.matcher(lineFromFile);
+                         dtcMatcher = dtcPattern.matcher(lineFromFile);
+                        //search for the line .underTest { color ...
+                        if (underTestMatcher!=null && underTestMatcher.find()){
+                            output.append(lineFromFile+"\n");
+                            output.append(tagECUStyle+"\n");
+                            output.append(tagDTCStyle+"\n");
+                        }
+                        //search for ECU in the ECU Right list that matches the ECU from the input file
+                        if (ecuMatcher!=null && ecuMatcher.find()){
+                            String ecuFromFile = ecuMatcher.group(2);
+                            ecuFromDocRight = dTCDocRight.findEcuByName(ecuFromFile);
+                            //add ECU tag if ECU status changed or if ECUs'DTC have changed
+                            if (ecuFromDocRight.hasDtcEvolution || ecuFromDocRight.hasStatusEvolution) {
+                                String s = ecuMatcher.group(1) + ecuMatcher.group(2) + ecuMatcher.group(3) + tagECU;
+                                output.append(s + "\n");
+                            } else
+                                output.append(lineFromFile + "\n");
+                        }
+                        //search for DTC in the ECU Dtc list that matches the DTC from the input file of the last ECU.
+                        // In htl, it is either several lines of tdmecu or tdmecu follows by several tdmdev
+                        else if (dtcMatcher != null && dtcMatcher.find()) {
+                            String dtcFromFile = dtcMatcher.group(2);                          
+                            dtcFromEcuRight = ecuFromDocRight.findDtcByName(dtcFromFile);
+                            //add DTC tag if DTC status changed or is new
+                            if (dtcFromEcuRight.isNew){                          
+                                output.append(lineFromFile.replaceFirst("\\<\\/FONT\\>", "\\<\\/FONT\\>"+tagDTCNew) + "\n");
+                            } else if (dtcFromEcuRight.fromCurrentToHistorical) {                          
+                                output.append(lineFromFile.replaceFirst("\\<\\/FONT\\>", "\\<\\/FONT\\>" + tagDTCFromCurrentToHistorical) + "\n");
+                            } else if (dtcFromEcuRight.fromHistoricalToCurrent) {                      
+                                output.append(lineFromFile.replaceFirst("\\<\\/FONT\\>", "\\<\\/FONT\\>" + tagDTCFromHistoricaltoCurrent) + "\n");
+                            }                    
+                            else
+                                output.append(lineFromFile + "\n");
+                        }
+                        else {
+                            output.append(lineFromFile + "\n");
+                        }
+                    }
+                    output.close();
+                    Desktop.getDesktop().open(htmlReport);
+
+                } catch (IOException ex) {
+                    Logger.getLogger(DTCCompareUI.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }
+
+            @Override
+            public void componentMoved(ComponentEvent e) {
+            }
+
+            @Override
+            public void componentResized(ComponentEvent e) {
+            }
+
+            @Override
+            public void componentShown(ComponentEvent e) {
+            }
+        });
+
+        d.setLocation(jButtonGenerateHtmlReport.getLocationOnScreen().x-50,jButtonGenerateHtmlReport.getLocationOnScreen().y+100);
+        d.setVisible(true);       
+    }//GEN-LAST:event_jButtonGenerateHtmlReportActionPerformed
+
+    private void jTextPaneLeftMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_jTextPaneLeftMouseClicked
+        // TODO add your handling code here:
+        if (dTCDocLeftIsOk)
+            try {
+                Desktop.getDesktop().open(dTCDocLeft.file);
+        } catch (IOException ex) {
+            Logger.getLogger(DTCCompareUI.class.getName()).log(Level.SEVERE, null, ex);
+        }
+
+    }//GEN-LAST:event_jTextPaneLeftMouseClicked
+
+    private void jTextPaneRightMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_jTextPaneRightMouseClicked
+        // TODO add your handling code here:
+                if (dTCDocRightIsOk)
+            try {
+                Desktop.getDesktop().open(dTCDocRight.file);
+        } catch (IOException ex) {
+            Logger.getLogger(DTCCompareUI.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }//GEN-LAST:event_jTextPaneRightMouseClicked
+
+    /**
+     * Copy File
+     * @param source
+     * @param dest
+     * @throws IOException 
+     */    
+    private static void copyFileUsingStream(File source, File dest) throws IOException {
+        InputStream is = null;
+        OutputStream os = null;
+        try {
+            is = new FileInputStream(source);
+            os = new FileOutputStream(dest);
+            byte[] buffer = new byte[1024];
+            int length;
+            while ((length = is.read(buffer)) > 0) {
+                os.write(buffer, 0, length);
+            }
+        } finally {
+            is.close();
+            os.close();
+        }
+    }
+    
     /**
      * @param args the command line arguments
      */
@@ -808,16 +1097,22 @@ public class DTCCompareUI extends javax.swing.JFrame {
     private final SimpleAttributeSet EcuStyle;
     private final SimpleAttributeSet DtcStyle;
     private String reportLanguage;
-       
+    private JDialog d;
+    private String tagForHtmlreport;
     
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JButton jButtonGenerateHtmlReport;
     private javax.swing.JCheckBox jCheckBoxDTC;
     private javax.swing.JCheckBox jCheckBoxECU;
+    private javax.swing.JLabel jLabel1;
+    private javax.swing.JLabel jLabel2;
+    private javax.swing.JPanel jPanel1;
     private javax.swing.JPanel jPanelLeft;
     private javax.swing.JPanel jPanelRight;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JScrollPane jScrollPane2;
     private javax.swing.JScrollPane jScrollPane3;
+    private javax.swing.JTextField jTextFieldTag;
     private javax.swing.JTextPane jTextPaneLeft;
     private javax.swing.JTextPane jTextPaneOutput;
     private javax.swing.JTextPane jTextPaneRight;

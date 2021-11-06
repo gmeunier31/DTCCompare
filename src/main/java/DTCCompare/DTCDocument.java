@@ -28,7 +28,7 @@ public class DTCDocument {
     public int currentFailuresCount=0;
     public int historicalFailuresCOunt=0;
     public int dtcWithTestNotCompletedCount=0;
-    public String fileName;
+    public File file;
     public String title;
     public boolean isInFrench=false;
     public boolean isInEnglish=false;
@@ -36,10 +36,10 @@ public class DTCDocument {
     
     
     //default constructor    
-    public DTCDocument(File file) {
+    public DTCDocument(File f) {
         try {
-            doc = (Document) Jsoup.parse(file, "UTF-8", "");
-            fileName=file.getName();
+            doc = (Document) Jsoup.parse(f, "UTF-8", "");
+            file = f;           
         } catch (IOException ex) {
             Logger.getLogger(DTCDocument.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -140,7 +140,7 @@ public class DTCDocument {
                     }
                     System.out.println("DTC: "+m.group(1)+" --> "+dtcFailureType);
                     newDtc = new DTC(m.group(1), dtcFailureType);
-                    newEcu.DtcList.add(newDtc);
+                    newEcu.dtcList.add(newDtc);
                 } else {
                 System.out.println("NO MATCH FOR DTC");
             }
@@ -150,6 +150,21 @@ public class DTCDocument {
 
         }
         return true;
+    }
+    
+    /**
+     * return ECU from the list of ECU when name is matching
+     * @param name
+     * @return 
+     */
+    public ECU findEcuByName(String name){
+        ECU matchEcu = new ECU();
+        
+        for (ECU ecu: ecuList){
+            if (ecu.name.equals(name))
+                matchEcu = ecu;                
+        }
+        return matchEcu;
     }
 }
     

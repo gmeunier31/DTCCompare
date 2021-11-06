@@ -24,10 +24,16 @@ public class ECU {
     boolean isUnderTest = false;
     boolean hasNoFailures = false;
     boolean hasDtcEvolution =false;
+    boolean hasStatusEvolution=false;
     
-    public ArrayList<DTC> DtcList = new ArrayList<>();
+    public ArrayList<DTC> dtcList = new ArrayList<>();
 
-    // Default constructor
+    /**
+     * Constructor
+     * @param n
+     * @param en
+     * @param efs 
+     */
     public ECU(String n, String en, TypeEcuFailure efs){
         name=n;
         extendedName=en;
@@ -36,4 +42,21 @@ public class ECU {
         isUnderTest=efs.equals(TypeEcuFailure.UnderTest);
         hasNoFailures=efs.equals(TypeEcuFailure.NoFailureDetected);
     }
+    /**
+     * Default contructor
+     */
+    public ECU() {
+    }
+
+    public DTC findDtcByName(String name) {
+        DTC matchDtc = new DTC();
+
+        for (DTC dtc : dtcList) {
+            if (dtc.name.equals(name)) {
+                matchDtc = dtc;
+            }
+        }
+        return matchDtc;
+    }
+        
 }
