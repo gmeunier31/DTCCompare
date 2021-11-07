@@ -104,6 +104,12 @@ public class DTCCompareUI extends javax.swing.JFrame {
 
             @Override
             public void drop(DropTargetDropEvent event) {
+                // disable all graphical items as long as valid files are not dropped
+                jButtonGenerateHtmlReport.setEnabled(false);
+                jCheckBoxECU.setEnabled(false);
+                jCheckBoxDTC.setEnabled(false);
+                jTextFieldTag.setEnabled(false);
+                
                 // Accept copy drops
                 event.acceptDrop(DnDConstants.ACTION_COPY);
 
@@ -121,13 +127,7 @@ public class DTCCompareUI extends javax.swing.JFrame {
                             // Get all of the dropped files
                             List<File> files = (List) transferable.getTransferData(flavor);
                             // Loop them through
-                            for (File file : files) {
-                                // Print out the file name
-                                System.out.println("File name is '" + file.getName() + "'.");
-                                System.out.println("File path is '" + file.getAbsolutePath() + "'.");
-                                System.out.println("File path is '" + file.getParent()+ "'.");
-
-
+                            for (File file : files) {                                
                                 if (checkFileIsDTCFile(file, true)) {
                                     //Dtc file is ok, let's proceed
                                     dTCDocLeftIsOk=true;
@@ -140,13 +140,6 @@ public class DTCCompareUI extends javax.swing.JFrame {
                                         jTextPaneLeft.setText("");
                                         doc.insertString(0, "" + file.getName() + "\n\n", Title);
                                         doc.insertString(doc.getLength(), ""+dTCDocLeft.title+"\n", Title);
-
-                                        /*
-                                        doc.insertString(doc.getLength(), "Vehicle with " + dTCDocLeft.totalFailuresCount + " failures\n", Title);
-                                        doc.insertString(doc.getLength(), "" + dTCDocLeft.currentFailuresCount + " current Failure, " + dTCDocLeft.historicalFailuresCOunt
-                                                + " historical Failures\n", keyWordDetailledFailures);
-                                        doc.insertString(doc.getLength(), "" + dTCDocLeft.dtcWithTestNotCompletedCount + " DTC with test not completed\n", keyWordDetailledFailures);
-                                        */
                                     } catch (Exception e) {
                                         System.out.println(e);
                                     }
@@ -187,6 +180,12 @@ public class DTCCompareUI extends javax.swing.JFrame {
 
             @Override
             public void drop(DropTargetDropEvent event) {
+                // disable all graphical items as long as valid files are not dropped
+                jButtonGenerateHtmlReport.setEnabled(false);
+                jCheckBoxECU.setEnabled(false);
+                jCheckBoxDTC.setEnabled(false);
+                jTextFieldTag.setEnabled(false);
+
                 // Accept copy drops
                 event.acceptDrop(DnDConstants.ACTION_COPY);
 
@@ -434,6 +433,10 @@ public class DTCCompareUI extends javax.swing.JFrame {
                ECU xxx was present in File 1 but not listed in File 2
              */
             jTextPaneOutput.setText("");
+            /* Enabel the check boxes to configure the output report */
+            jCheckBoxECU.setEnabled(true);
+            jCheckBoxDTC.setEnabled(true);
+            
             for (ECU ecuFromLeft : dTCDocLeft.ecuList) {
                 for (ECU ecuFromRight : dTCDocRight.ecuList) {
                     if (!ecuFromLeft.name.equals(ecuFromRight.name)) {
@@ -687,6 +690,7 @@ public class DTCCompareUI extends javax.swing.JFrame {
         jLabel2.setText("Select what to see on report");
 
         jCheckBoxECU.setText("Diff on ECU");
+        jCheckBoxECU.setEnabled(false);
         jCheckBoxECU.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 jCheckBoxECUActionPerformed(evt);
@@ -694,6 +698,7 @@ public class DTCCompareUI extends javax.swing.JFrame {
         });
 
         jCheckBoxDTC.setText("Diff on DTC");
+        jCheckBoxDTC.setEnabled(false);
         jCheckBoxDTC.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 jCheckBoxDTCActionPerformed(evt);
@@ -719,6 +724,7 @@ public class DTCCompareUI extends javax.swing.JFrame {
 
         jTextFieldTag.setFont(new java.awt.Font("sansserif", 2, 10)); // NOI18N
         jTextFieldTag.setText("Enter Tag to be present in htlm report");
+        jTextFieldTag.setEnabled(false);
         jTextFieldTag.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 jTextFieldTagActionPerformed(evt);
@@ -768,6 +774,7 @@ public class DTCCompareUI extends javax.swing.JFrame {
         );
 
         jButtonGenerateHtmlReport.setText("Generate HTML");
+        jButtonGenerateHtmlReport.setEnabled(false);
         jButtonGenerateHtmlReport.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 jButtonGenerateHtmlReportActionPerformed(evt);
@@ -817,9 +824,19 @@ public class DTCCompareUI extends javax.swing.JFrame {
 
         displayDiffOnECU = jCheckBoxECU.isSelected();
         jTextPaneOutput.setText("");
-
         try {
+            if (jCheckBoxECU.isSelected()) {
+                jTextFieldTag.setEnabled(true);
+            } else {
+                jButtonGenerateHtmlReport.setEnabled(false);
+                jTextFieldTag.setEnabled(false);
+                if (jCheckBoxDTC.isSelected()){
+                    jCheckBoxDTC.setSelected(false);
+                    displayDiffOnDTC = false;
+                }
+            }
             compareDtcFiles();
+
         } catch (BadLocationException ex) {
             Logger.getLogger(DTCCompareUI.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -831,7 +848,21 @@ public class DTCCompareUI extends javax.swing.JFrame {
         jTextPaneOutput.setText("");
 
         try {
+            if (jCheckBoxDTC.isSelected()) {
+                if (!jCheckBoxECU.isSelected()){
+                    jCheckBoxECU.setSelected(true);
+                    displayDiffOnECU = jCheckBoxECU.isSelected();
+                }
+                jTextFieldTag.setEnabled(true);
+            }
+            else {
+                if (!jCheckBoxECU.isSelected()) {
+                    jButtonGenerateHtmlReport.setEnabled(false);
+                    jTextFieldTag.setEnabled(false);
+                }
+            }
             compareDtcFiles();
+
         } catch (BadLocationException ex) {
             Logger.getLogger(DTCCompareUI.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -862,6 +893,7 @@ public class DTCCompareUI extends javax.swing.JFrame {
     private void jTextFieldTagActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jTextFieldTagActionPerformed
         // TODO add your handling code here:
         tagForHtmlreport=jTextFieldTag.getText();
+        jButtonGenerateHtmlReport.setEnabled(true);
     }//GEN-LAST:event_jTextFieldTagActionPerformed
 
     /**

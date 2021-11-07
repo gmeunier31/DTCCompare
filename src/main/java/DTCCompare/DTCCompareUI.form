@@ -264,6 +264,7 @@
         <Component class="javax.swing.JCheckBox" name="jCheckBoxECU">
           <Properties>
             <Property name="text" type="java.lang.String" value="Diff on ECU"/>
+            <Property name="enabled" type="boolean" value="false"/>
           </Properties>
           <Events>
             <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="jCheckBoxECUActionPerformed"/>
@@ -272,6 +273,7 @@
         <Component class="javax.swing.JCheckBox" name="jCheckBoxDTC">
           <Properties>
             <Property name="text" type="java.lang.String" value="Diff on DTC"/>
+            <Property name="enabled" type="boolean" value="false"/>
           </Properties>
           <Events>
             <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="jCheckBoxDTCActionPerformed"/>
@@ -305,6 +307,7 @@
               <Font name="sansserif" size="10" style="2"/>
             </Property>
             <Property name="text" type="java.lang.String" value="Enter Tag to be present in htlm report"/>
+            <Property name="enabled" type="boolean" value="false"/>
           </Properties>
           <Events>
             <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="jTextFieldTagActionPerformed"/>
@@ -315,6 +318,7 @@
     <Component class="javax.swing.JButton" name="jButtonGenerateHtmlReport">
       <Properties>
         <Property name="text" type="java.lang.String" value="Generate HTML"/>
+        <Property name="enabled" type="boolean" value="false"/>
       </Properties>
       <Events>
         <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="jButtonGenerateHtmlReportActionPerformed"/>
