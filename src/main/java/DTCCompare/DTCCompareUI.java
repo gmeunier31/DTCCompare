@@ -28,6 +28,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Writer;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.List;
 import java.util.Scanner;
 import java.util.logging.Level;
@@ -42,9 +47,11 @@ import javax.swing.text.SimpleAttributeSet;
 import javax.swing.text.StyleConstants;
 import javax.swing.text.StyledDocument;
 import org.apache.commons.io.FilenameUtils;
+import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
+
 
 /**
  *
@@ -208,9 +215,6 @@ public class DTCCompareUI extends javax.swing.JFrame {
 
                             // Loop them through
                             for (File file : files) {
-
-                                // Print out the file path
-                                /*System.out.println("File path is '" + file.getName() + "'.");*/
                                 if (checkFileIsDTCFile(file,false)){
                                     //it is a DTC file, let's proceed
                                     dTCDocRightIsOk=true;
@@ -621,6 +625,9 @@ public class DTCCompareUI extends javax.swing.JFrame {
         jToggleButtonEnglish = new javax.swing.JToggleButton();
         jTextFieldTag = new javax.swing.JTextField();
         jButtonGenerateHtmlReport = new javax.swing.JButton();
+        jLabelProgramVersion = new javax.swing.JLabel();
+        jLabelReportIssue = new javax.swing.JLabel();
+        jLabelHelp = new javax.swing.JLabel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
@@ -781,6 +788,26 @@ public class DTCCompareUI extends javax.swing.JFrame {
             }
         });
 
+        jLabelProgramVersion.setText("DTCCompare v3.0");
+
+        jLabelReportIssue.setFont(new java.awt.Font("sansserif", 2, 10)); // NOI18N
+        jLabelReportIssue.setForeground(new java.awt.Color(0, 0, 255));
+        jLabelReportIssue.setText("Report an issue");
+        jLabelReportIssue.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                jLabelReportIssueMouseClicked(evt);
+            }
+        });
+
+        jLabelHelp.setFont(new java.awt.Font("sansserif", 2, 10)); // NOI18N
+        jLabelHelp.setForeground(new java.awt.Color(0, 0, 255));
+        jLabelHelp.setText("Help");
+        jLabelHelp.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                jLabelHelpMouseClicked(evt);
+            }
+        });
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
@@ -789,14 +816,19 @@ public class DTCCompareUI extends javax.swing.JFrame {
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(layout.createSequentialGroup()
                         .addContainerGap()
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
                             .addComponent(jScrollPane3, javax.swing.GroupLayout.PREFERRED_SIZE, 466, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addGroup(javax.swing.GroupLayout.Alignment.LEADING, layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
-                                .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                .addGroup(layout.createSequentialGroup()
-                                    .addComponent(jPanelLeft, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                                    .addComponent(jPanelRight, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))))
+                            .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                            .addGroup(layout.createSequentialGroup()
+                                .addComponent(jPanelLeft, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                                .addComponent(jPanelRight, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                            .addGroup(layout.createSequentialGroup()
+                                .addComponent(jLabelReportIssue)
+                                .addGap(72, 72, 72)
+                                .addComponent(jLabelHelp)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                .addComponent(jLabelProgramVersion))))
                     .addGroup(layout.createSequentialGroup()
                         .addGap(184, 184, 184)
                         .addComponent(jButtonGenerateHtmlReport)))
@@ -805,7 +837,11 @@ public class DTCCompareUI extends javax.swing.JFrame {
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addContainerGap()
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jLabelProgramVersion, javax.swing.GroupLayout.PREFERRED_SIZE, 16, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jLabelReportIssue)
+                    .addComponent(jLabelHelp))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
                     .addComponent(jPanelLeft, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(jPanelRight, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
@@ -813,7 +849,7 @@ public class DTCCompareUI extends javax.swing.JFrame {
                 .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jButtonGenerateHtmlReport)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 8, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addComponent(jScrollPane3, javax.swing.GroupLayout.PREFERRED_SIZE, 550, javax.swing.GroupLayout.PREFERRED_SIZE))
         );
 
@@ -915,7 +951,6 @@ public class DTCCompareUI extends javax.swing.JFrame {
         } else {
             pane = new JOptionPane("Drop 2 html files first! \n");
             d = pane.createDialog((JFrame) null, "Generate HTML report");
-            System.out.println("Test");
         }
 
         d.addWindowListener(new WindowAdapter() {
@@ -934,7 +969,6 @@ public class DTCCompareUI extends javax.swing.JFrame {
             @Override
             public void componentHidden(ComponentEvent e) {
                 try {
-                    System.out.println("dialog hidden");
                     //check output file for html report already exists, if yes, delete it
                     String aa =dTCDocRight.file.getParent()+"\\"+
                             FilenameUtils.removeExtension(dTCDocRight.file.getName())+
@@ -1054,6 +1088,38 @@ public class DTCCompareUI extends javax.swing.JFrame {
         }
     }//GEN-LAST:event_jTextPaneRightMouseClicked
 
+    private void jLabelReportIssueMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_jLabelReportIssueMouseClicked
+        try {
+            // TODO add your handling code here:
+            // open the Jira template to fill a defect report
+            URI oURL = null;
+            try {
+                oURL = new URI("https://jira.dt.renault.com/browse/FOTA-17757");
+            } catch (URISyntaxException ex) {
+                Logger.getLogger(DTCCompareUI.class.getName()).log(Level.SEVERE, null, ex);
+            }
+            Desktop.getDesktop().browse(oURL);
+        } catch (IOException ex) {
+            Logger.getLogger(DTCCompareUI.class.getName()).log(Level.SEVERE, null, ex);
+        }        
+    }//GEN-LAST:event_jLabelReportIssueMouseClicked
+
+    private void jLabelHelpMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_jLabelHelpMouseClicked
+        // TODO add your handling code here:
+        // open confluence page
+        try {
+            URI oURL = null;
+            try {
+                oURL = new URI("https://confluence.dt.renault.com/display/RSWL/DTCCompare");
+            } catch (URISyntaxException ex) {
+                Logger.getLogger(DTCCompareUI.class.getName()).log(Level.SEVERE, null, ex);
+            }
+            Desktop.getDesktop().browse(oURL);
+        } catch (IOException ex) {
+            Logger.getLogger(DTCCompareUI.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }//GEN-LAST:event_jLabelHelpMouseClicked
+
     /**
      * Copy File
      * @param source
@@ -1108,7 +1174,6 @@ public class DTCCompareUI extends javax.swing.JFrame {
         java.awt.EventQueue.invokeLater(new Runnable() {
             public void run() {
                 new DTCCompareUI().setVisible(true);
-                /*System.out.println("File path is '.");*/
             }
         });
     }
@@ -1138,6 +1203,9 @@ public class DTCCompareUI extends javax.swing.JFrame {
     private javax.swing.JCheckBox jCheckBoxECU;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel2;
+    private javax.swing.JLabel jLabelHelp;
+    private javax.swing.JLabel jLabelProgramVersion;
+    private javax.swing.JLabel jLabelReportIssue;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JPanel jPanelLeft;
     private javax.swing.JPanel jPanelRight;
